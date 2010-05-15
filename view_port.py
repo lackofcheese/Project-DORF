@@ -8,9 +8,9 @@ DEFAULT_INDEX = 3
 # Scroll values are defined in terms of the number of pixels moved
 X_SCROLL = Y_SCROLL = BLOCK_SIZES[-1]
 
-class ViewPort(object):
+class ViewPort2D(object):
     """ A class that represents the current view of the game grid. """
-    def __init__(self, location, screenRes, gridSize, terrainSurf):
+    def __init__(self, location, screenRes, gridSize):
         self.x, self.y, self.z = location
 
         self.blockSizeIndex = DEFAULT_INDEX
@@ -20,8 +20,6 @@ class ViewPort(object):
         self.gridWidth, self.gridHeight = gridSize
         self.columns = self.screenWidth / self.blockSize
         self.rows = self.screenHeight / self.blockSize
-        self.terrainSurf = terrainSurf
-        self.viewArea = pygame.Surface(self.screenRes)
 
     def zoom_in(self):
         if self.blockSizeIndex < len(BLOCK_SIZES) - 1:
@@ -81,12 +79,6 @@ class ViewPort(object):
         screenX = (gridX - self.x) * self.blockSize
         screenY = (gridY - self.y) * self.blockSize
         return screenX, screenY
-
-    def render_terrain(self, target):
-        """ Renders the viewable terrain onto the given target surface """
-        area = pygame.Rect(self.x, self.y, self.columns, self.rows)
-        viewArea = self.terrainSurf.subsurface(area)
-        pygame.transform.scale(viewArea, self.screenRes, target)
 
     def __str__(self):
         return str((self.x, self.y, self.z, self.blockSize,

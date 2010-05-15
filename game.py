@@ -3,7 +3,7 @@ import pygame
 import time
 import cPickle
 
-from view_port import ViewPort
+from render import Renderer2D
 from grid import Grid
 from mover import RandomMover
 from terrain import TerrainData
@@ -24,13 +24,6 @@ class Game:
         self.gameGrid = Grid()
         self.make_grid(self.gridSize)
        
-        #Build the terrain as a single surface
-        self.terrainSurf = pygame.Surface(self.gridSize)
-       
-        #Our main view port/camera
-        self.view = ViewPort((0, 0, 0), self.resolution, self.gridSize,
-                self.terrainSurf)
- 
         #initialize and blank the screen
         pygame.init()
         self.screen = pygame.display.set_mode(self.resolution)
@@ -40,7 +33,10 @@ class Game:
         self.font.set_bold(True)
 
         self.generate_terrain()
-        self.update_terrain_surf()
+
+        # Set up the renderer
+        self.renderer = Renderer2D((0, 0, 0), self.screen, self.resolution,
+                self.gameGrid, self.gridSize)
 
     def make_grid(self, gridSize):
         for x in range(0, gridSize[0]):
@@ -58,49 +54,28 @@ class Game:
         generator.apply(self.gameGrid)
         smoother.apply(self.gameGrid)
 
-    # Updates the main game surface (SLOW!)
-    def update_terrain_surf(self):
-        for x in xrange(0, self.xGrid):
-            for y in xrange(0, self.yGrid):
-                loc = (x, y, self.view.z)
-                terrainNode = self.gameGrid.get_node_at(loc)
-                if terrainNode is not None:
-                    rect = pygame.Rect(x, y, 1, 1)
-                    terrainNode.contents.render(rect, self.terrainSurf)
-
-    # updates the screen to show the appropriate visible nodes
     def update_display(self):
-
-        self.view.render_terrain(self.screen)
+        """ Updates the screen to show the appropriate visible nodes """
+        self.renderer.render_terrain()
+        self.renderer.render_objects(self.movers)
 
         self.frame += 1
-
         if time.time() - self.time > 1:
             self.time = time.time()
             self.fps = self.frame
             self.frame = 0
 
-        text = self.font.render(str(self.view) +
+        text = self.font.render(str(self.renderer.view) +
                 " FPS:{0}".format(self.fps), 1, (0, 255, 0))
         rect = text.get_rect()
         rect.x, rect.y = (0,0)
         self.screen.blit(text, rect)
-        self.display_movers()
 
         pygame.display.update()
 
     def move_movers(self):
         for mover in self.movers:
             mover.move()
-
-    def display_movers(self):
-        for mover in self.movers:
-            loc = mover.get_location()
-            if self.view.contains(loc):
-                screenX, screenY = self.view.grid2screen(loc)
-                rect = pygame.Rect(screenX, screenY,
-                         self.view.blockSize, self.view.blockSize)
-                mover.render(rect, self.screen)
 
     def save_grid(self):
         print "saving"
@@ -129,11 +104,11 @@ class Game:
                     sys.exit()
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    loc = self.view.screen2grid(event.pos)
+                    loc = self.renderer.view.screen2grid(event.pos)
                     if event.button == 1: # Add mover
                         rm = RandomMover(self.gameGrid, loc)
                         self.movers.append(rm)
-                    if event.button == 3: # Remove mover
+                    if event.button == 3: # Remove mover  
                         for mover in self.movers:
                             if mover.get_location() == loc:
                                 self.movers.remove(mover)
@@ -141,21 +116,21 @@ class Game:
 
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_DOWN:
-                        self.view.scroll((0, 1))
+                        self.renderer.view.scroll((0, 1))
                     if event.key == pygame.K_UP:
-                        self.view.scroll((0, -1))
+                        self.renderer.view.scroll((0, -1))
                     if event.key == pygame.K_LEFT:
-                        self.view.scroll((-1, 0))
+                        self.renderer.view.scroll((-1, 0))
                     if event.key == pygame.K_RIGHT:
-                        self.view.scroll((1, 0))
+                        self.renderer.view.scroll((1, 0))
                     if event.key == pygame.K_PAGEUP:
-                        self.view.z += 1
+                        self.renderer.view.z += 1
                     if event.key == pygame.K_PAGEDOWN:
-                        self.view.z -= 1
+                        self.renderer.view.z -= 1
                     if event.key == pygame.K_z:
-                        self.view.zoom_in()
+                        self.renderer.view.zoom_in()
                     if event.key == pygame.K_x:
-                        self.view.zoom_out()
+                        self.renderer.view.zoom_out()
                     if event.key == pygame.K_SPACE:
                         if not self.autoMovers:
                             self.move_movers()
